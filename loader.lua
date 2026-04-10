@@ -8,7 +8,7 @@ local player = Players.LocalPlayer
 local MarketplaceService = game:GetService("MarketplaceService")
 
 -- Configuration
-local API_URL = "https://eclipse-backend.onrender.com/api/validate"
+local API_URL = "https://eclipse-backend-31de.onrender.com/api/validate"
 local SCRIPT_KEY = script_key or ""
 
 -- ============================================
