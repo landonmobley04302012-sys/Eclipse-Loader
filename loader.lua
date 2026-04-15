@@ -1,77 +1,43 @@
--- 🌑 ECLIPSE LOADER
--- Version: 1.0.0
--- Game-specific loader template
+-- 🌑 ECLIPSE LOADER - Dynamic Script Loader
+-- Version: 2.0.0
+-- Fetches scripts from GitHub based on Game ID
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local MarketplaceService = game:GetService("MarketplaceService")
 
--- Configuration
-local API_URL = "https://eclipse-backend-31de.onrender.com/api/validate"
+-- ============================================
+-- CONFIGURATION
+-- ============================================
+local API_URL = "https://eclipse-discordbot-production.up.railway.app/api/validate"
+local SCRIPTS_URL = "https://raw.githubusercontent.com/landonmobley04302012-sys/Eclipse-Scripts/main/scripts/"
 local SCRIPT_KEY = script_key or ""
 
 -- ============================================
--- GAME CONFIGURATION - ADD YOUR GAMES HERE
+-- HWID GENERATION (Multi-Executor Support)
 -- ============================================
-local SUPPORTED_GAMES = {
-    -- [Game ID] = {
-    --     name = "Game Name",
-    --     loadstring = "LOADSTRING_HERE"
-    -- }
-    
-    -- EXAMPLE (replace with your actual games):
-    [13822889] = {  -- Lumber Tycoon 2
-        name = "Lumber Tycoon 2",
-        loadstring = "PUT_YOUR_LOADSTRING_HERE"
-    },
-    
-    [286090429] = {  -- Arsenal
-        name = "Arsenal",
-        loadstring = "PUT_YOUR_LOADSTRING_HERE"
-    },
-    
-    [2753915549] = {  -- Blox Fruits
-        name = "Blox Fruits",
-        loadstring = "PUT_YOUR_LOADSTRING_HERE"
-    },
-    
-    [6284583030] = {  -- Pet Simulator X
-        name = "Pet Simulator X",
-        loadstring = "PUT_YOUR_LOADSTRING_HERE"
-    },
-}
--- ============================================
-
--- HWID Generation (multi-executor support)
 local function getHWID()
     local success, result = pcall(function()
-        -- Synapse X
         if syn and syn.crypto and syn.crypto.hash then
             return syn.crypto.hash(syn.user_id() .. syn.hwid())
         end
         
-        -- Script-Ware
         if SW_HWID then
             return SW_HWID
         end
         
-        -- Krnl
         if krnl and krnl.hwid then
             return krnl.hwid()
         end
         
-        -- Fluxus
         if fluxus and fluxus.hwid then
             return fluxus.hwid()
         end
         
-        -- Vega X
         if Vega and Vega.HWID then
             return Vega.HWID()
         end
         
-        -- Generic fallback
         local ids = {}
         for _, v in pairs({identifyexecutor(), getexecutorname()}) do
             table.insert(ids, tostring(v))
@@ -86,21 +52,9 @@ local function getHWID()
     end
 end
 
--- Get current game info
-local function getCurrentGame()
-    local gameId = game.GameId
-    local placeId = game.PlaceId
-    
-    if SUPPORTED_GAMES[gameId] then
-        return gameId, SUPPORTED_GAMES[gameId]
-    elseif SUPPORTED_GAMES[placeId] then
-        return placeId, SUPPORTED_GAMES[placeId]
-    else
-        return nil, nil
-    end
-end
-
--- UI Creation
+-- ============================================
+-- UI CREATION
+-- ============================================
 local function createUI()
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "EclipseLoader"
@@ -213,7 +167,7 @@ local function createUI()
     Watermark.Size = UDim2.new(1, 0, 0, 20)
     Watermark.Position = UDim2.new(0, 0, 0, 290)
     Watermark.BackgroundTransparency = 1
-    Watermark.Text = "Eclipse v1.0 | " .. player.Name
+    Watermark.Text = "Eclipse v2.0 | " .. player.Name
     Watermark.TextColor3 = Color3.fromRGB(100, 100, 140)
     Watermark.TextSize = 11
     Watermark.Font = Enum.Font.Gotham
@@ -221,7 +175,6 @@ local function createUI()
     
     return {
         gui = ScreenGui,
-        title = Title,
         subtitle = Subtitle,
         statusFill = StatusFill,
         statusText = StatusText,
@@ -230,31 +183,10 @@ local function createUI()
     }
 end
 
--- Main validation and loading function
-local function validateAndLoad()
-    local ui = createUI()
-    local hwid = getHWID()
-    
-    -- Check if game is supported
-    local gameId, gameData = getCurrentGame()
-    
-    ui.statusText.Text = "Checking game support..."
-    ui.statusFill:TweenSize(UDim2.new(0.2, 0, 1, 0), "Out", "Quad", 0.3)
-    
-    if not gameData then
-        ui.subtitle.Text = "❌ Game Not Supported"
-        ui.statusText.Text = "This game is not supported by Eclipse"
-        ui.gameInfo.Text = "Game ID: " .. tostring(game.GameId)
-        ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
-        return
-    end
-    
-    ui.gameInfo.Text = "Game: " .. gameData.name
-    ui.statusText.Text = "Validating key..."
-    ui.statusFill:TweenSize(UDim2.new(0.4, 0, 1, 0), "Out", "Quad", 0.3)
-    
-    -- Validate with backend
+-- ============================================
+-- VALIDATE KEY WITH BACKEND
+-- ============================================
+local function validateKey(hwid)
     local requestBody = HttpService:JSONEncode({
         key = SCRIPT_KEY,
         hwid = hwid
@@ -265,28 +197,69 @@ local function validateAndLoad()
     end)
     
     if not success then
-        ui.subtitle.Text = "❌ Connection Failed"
-        ui.statusText.Text = "Could not connect to server"
+        return { code = "CONNECTION_FAILED", message = "Could not connect to server" }
+    end
+    
+    return HttpService:JSONDecode(response)
+end
+
+-- ============================================
+-- FETCH SCRIPT FROM GITHUB
+-- ============================================
+local function loadGameScript(gameId)
+    local scriptUrl = SCRIPTS_URL .. tostring(gameId) .. ".lua"
+    
+    local success, scriptContent = pcall(function()
+        return game:HttpGet(scriptUrl)
+    end)
+    
+    if not success or scriptContent == "" or scriptContent:find("404") then
+        return false, nil
+    end
+    
+    return true, scriptContent
+end
+
+-- ============================================
+-- MAIN EXECUTION
+-- ============================================
+local function main()
+    local ui = createUI()
+    local hwid = getHWID()
+    local gameId = game.GameId
+    
+    ui.statusText.Text = "Checking game support..."
+    ui.statusFill:TweenSize(UDim2.new(0.2, 0, 1, 0), "Out", "Quad", 0.3)
+    ui.gameInfo.Text = "Game ID: " .. tostring(gameId)
+    
+    -- Check if script exists for this game
+    local scriptExists, scriptContent = loadGameScript(gameId)
+    
+    if not scriptExists then
+        ui.subtitle.Text = "❌ Game Not Supported"
+        ui.statusText.Text = "This game is not supported by Eclipse"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
         return
     end
     
-    ui.statusFill:TweenSize(UDim2.new(0.7, 0, 1, 0), "Out", "Quad", 0.3)
+    ui.statusText.Text = "Validating key..."
+    ui.statusFill:TweenSize(UDim2.new(0.4, 0, 1, 0), "Out", "Quad", 0.3)
     
-    local result = HttpService:JSONDecode(response)
+    -- Validate key with backend
+    local validationResult = validateKey(hwid)
     
-    if result.code == "KEY_VALID" then
+    if validationResult.code == "KEY_VALID" then
         ui.subtitle.Text = "✅ Key Validated"
-        ui.statusText.Text = "Loading " .. gameData.name .. "..."
+        ui.statusText.Text = "Loading script..."
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.5)
         
         wait(1)
         
-        -- Load the game-specific script
+        -- Execute the script
         local loadSuccess, loadError = pcall(function()
-            loadstring(gameData.loadstring)()
+            loadstring(scriptContent)()
         end)
         
         if loadSuccess then
@@ -297,31 +270,31 @@ local function validateAndLoad()
             ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         end
         
-    elseif result.code == "HWID_MISMATCH" then
+    elseif validationResult.code == "HWID_MISMATCH" then
         ui.subtitle.Text = "❌ HWID Mismatch"
         ui.statusText.Text = "This key is bound to another device"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
         
-    elseif result.code == "KEY_EXPIRED" then
+    elseif validationResult.code == "KEY_EXPIRED" then
         ui.subtitle.Text = "❌ Key Expired"
         ui.statusText.Text = "Your key has expired"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
         
-    elseif result.code == "USER_BLACKLISTED" then
+    elseif validationResult.code == "USER_BLACKLISTED" then
         ui.subtitle.Text = "❌ Blacklisted"
-        ui.statusText.Text = "You are blacklisted from Eclipse"
+        ui.statusText.Text = validationResult.message or "You are blacklisted"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
         
     else
         ui.subtitle.Text = "❌ Invalid Key"
-        ui.statusText.Text = result.message or "Key validation failed"
+        ui.statusText.Text = validationResult.message or "Key validation failed"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
     end
 end
 
--- Start validation
-validateAndLoad()
+-- Start everything
+main()
