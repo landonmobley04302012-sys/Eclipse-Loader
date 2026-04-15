@@ -1,6 +1,6 @@
--- 🌑 ECLIPSE LOADER - Dynamic Script Loader
+-- 🌑 ECLIPSE LOADER - Secure Dynamic Loader
 -- Version: 2.0.0
--- Fetches scripts from GitHub based on Game ID
+-- Fetches scripts securely from Railway API
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -9,8 +9,7 @@ local player = Players.LocalPlayer
 -- ============================================
 -- CONFIGURATION
 -- ============================================
-local API_URL = "https://eclipse-discordbot-production.up.railway.app/api/validate"
-local SCRIPTS_URL = "https://raw.githubusercontent.com/landonmobley04302012-sys/Eclipse-Scripts/main/scripts/"
+local API_URL = "https://eclipse-discordbot-production.up.railway.app"
 local SCRIPT_KEY = script_key or ""
 
 -- ============================================
@@ -184,40 +183,30 @@ local function createUI()
 end
 
 -- ============================================
--- VALIDATE KEY WITH BACKEND
+-- FETCH SCRIPT FROM SECURE API
 -- ============================================
-local function validateKey(hwid)
+local function fetchScript(gameId, hwid)
     local requestBody = HttpService:JSONEncode({
         key = SCRIPT_KEY,
-        hwid = hwid
+        hwid = hwid,
+        gameId = tostring(gameId)
     })
     
     local success, response = pcall(function()
-        return HttpService:PostAsync(API_URL, requestBody)
+        return HttpService:PostAsync(API_URL .. "/api/script", requestBody)
     end)
     
     if not success then
-        return { code = "CONNECTION_FAILED", message = "Could not connect to server" }
+        return false, "Connection failed"
     end
     
-    return HttpService:JSONDecode(response)
-end
-
--- ============================================
--- FETCH SCRIPT FROM GITHUB
--- ============================================
-local function loadGameScript(gameId)
-    local scriptUrl = SCRIPTS_URL .. tostring(gameId) .. ".lua"
+    local data = HttpService:JSONDecode(response)
     
-    local success, scriptContent = pcall(function()
-        return game:HttpGet(scriptUrl)
-    end)
-    
-    if not success or scriptContent == "" or scriptContent:find("404") then
-        return false, nil
+    if data.error then
+        return false, data.error
     end
     
-    return true, scriptContent
+    return true, data.script
 end
 
 -- ============================================
@@ -232,67 +221,36 @@ local function main()
     ui.statusFill:TweenSize(UDim2.new(0.2, 0, 1, 0), "Out", "Quad", 0.3)
     ui.gameInfo.Text = "Game ID: " .. tostring(gameId)
     
-    -- Check if script exists for this game
-    local scriptExists, scriptContent = loadGameScript(gameId)
+    ui.statusText.Text = "Validating key..."
+    ui.statusFill:TweenSize(UDim2.new(0.5, 0, 1, 0), "Out", "Quad", 0.3)
     
-    if not scriptExists then
-        ui.subtitle.Text = "❌ Game Not Supported"
-        ui.statusText.Text = "This game is not supported by Eclipse"
+    local success, scriptContent = fetchScript(gameId, hwid)
+    
+    if not success then
+        ui.subtitle.Text = "❌ Access Denied"
+        ui.statusText.Text = scriptContent or "Could not load script"
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
         ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
         return
     end
     
-    ui.statusText.Text = "Validating key..."
-    ui.statusFill:TweenSize(UDim2.new(0.4, 0, 1, 0), "Out", "Quad", 0.3)
+    ui.subtitle.Text = "✅ Key Validated"
+    ui.statusText.Text = "Loading script..."
+    ui.statusFill.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
+    ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.5)
     
-    -- Validate key with backend
-    local validationResult = validateKey(hwid)
+    wait(1)
     
-    if validationResult.code == "KEY_VALID" then
-        ui.subtitle.Text = "✅ Key Validated"
-        ui.statusText.Text = "Loading script..."
-        ui.statusFill.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.5)
-        
-        wait(1)
-        
-        -- Execute the script
-        local loadSuccess, loadError = pcall(function()
-            loadstring(scriptContent)()
-        end)
-        
-        if loadSuccess then
-            ui.gui:Destroy()
-        else
-            ui.subtitle.Text = "❌ Load Failed"
-            ui.statusText.Text = "Script error: " .. tostring(loadError):sub(1, 30)
-            ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        end
-        
-    elseif validationResult.code == "HWID_MISMATCH" then
-        ui.subtitle.Text = "❌ HWID Mismatch"
-        ui.statusText.Text = "This key is bound to another device"
-        ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
-        
-    elseif validationResult.code == "KEY_EXPIRED" then
-        ui.subtitle.Text = "❌ Key Expired"
-        ui.statusText.Text = "Your key has expired"
-        ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
-        
-    elseif validationResult.code == "USER_BLACKLISTED" then
-        ui.subtitle.Text = "❌ Blacklisted"
-        ui.statusText.Text = validationResult.message or "You are blacklisted"
-        ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
-        
+    local loadSuccess, loadError = pcall(function()
+        loadstring(scriptContent)()
+    end)
+    
+    if loadSuccess then
+        ui.gui:Destroy()
     else
-        ui.subtitle.Text = "❌ Invalid Key"
-        ui.statusText.Text = validationResult.message or "Key validation failed"
+        ui.subtitle.Text = "❌ Load Failed"
+        ui.statusText.Text = "Script error: " .. tostring(loadError):sub(1, 30)
         ui.statusFill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        ui.statusFill:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 0.3)
     end
 end
 
