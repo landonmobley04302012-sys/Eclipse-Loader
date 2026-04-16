@@ -15,18 +15,14 @@ end
 
 local PORTAL_URL = "https://eclipse-portal-production.up.railway.app"
 local hwid = getHWID()
-local url = PORTAL_URL .. "/api/loader?key=" .. SCRIPT_KEY .. "&hwid=" .. hwid
+local url = PORTAL_URL .. "/api/loader?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid)
 
 local response = game:HttpGet(url)
 local data = HttpService:JSONDecode(response)
 
 if data.success then
     local fn = loadstring(data.loader)
-    if fn then
-        fn()
-    else
-        error("Eclipse: Failed to load UI")
-    end
+    if fn then fn() else error("Eclipse: Failed to load") end
 else
     error("Eclipse: " .. (data.message or "Access denied"))
 end
