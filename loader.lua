@@ -20,15 +20,15 @@ local SCRIPT_KEY = script_key or ""
 -- COLORS (Black, White, Purple Theme)
 -- ============================================
 local COLORS = {
-    BACKGROUND = Color3.fromRGB(0, 0, 0),           -- Pure Black
-    SECONDARY_BG = Color3.fromRGB(15, 15, 15),      -- Dark Gray
-    ACCENT = Color3.fromRGB(147, 112, 219),         -- Purple
-    ACCENT_DARK = Color3.fromRGB(106, 78, 167),     -- Dark Purple
-    ACCENT_LIGHT = Color3.fromRGB(188, 156, 255),   -- Light Purple
-    TEXT_PRIMARY = Color3.fromRGB(255, 255, 255),   -- White
-    TEXT_SECONDARY = Color3.fromRGB(180, 180, 180), -- Light Gray
-    ERROR = Color3.fromRGB(255, 80, 80),            -- Red (for errors)
-    SUCCESS = Color3.fromRGB(80, 200, 80)           -- Green (for success)
+    BACKGROUND = Color3.fromRGB(0, 0, 0),
+    SECONDARY_BG = Color3.fromRGB(15, 15, 15),
+    ACCENT = Color3.fromRGB(147, 112, 219),
+    ACCENT_DARK = Color3.fromRGB(106, 78, 167),
+    ACCENT_LIGHT = Color3.fromRGB(188, 156, 255),
+    TEXT_PRIMARY = Color3.fromRGB(255, 255, 255),
+    TEXT_SECONDARY = Color3.fromRGB(180, 180, 180),
+    ERROR = Color3.fromRGB(255, 80, 80),
+    SUCCESS = Color3.fromRGB(80, 200, 80)
 }
 
 -- ============================================
@@ -224,7 +224,7 @@ local function createMainUI()
     local Logo = Instance.new("ImageLabel")
     Logo.Size = UDim2.new(1, 0, 1, 0)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://113495616595439"
+    Logo.Image = "rbxassetid://109168088672488"
     Logo.Parent = LogoFrame
     
     -- Status Label
