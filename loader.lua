@@ -1,4 +1,4 @@
--- 🌑 ECLIPSE - Public Bootstrapper v2
+-- 🌑 ECLIPSE - Public Bootstrapper
 local HttpService = game:GetService("HttpService")
 local SCRIPT_KEY = script_key or ""
 
@@ -15,17 +15,13 @@ end
 
 local PORTAL_URL = "https://eclipse-portal-production.up.railway.app"
 local hwid = getHWID()
-
--- Build URL
 local url = PORTAL_URL .. "/api/loader?key=" .. SCRIPT_KEY .. "&hwid=" .. hwid
 
--- Fetch loader
 local response = game:HttpGet(url)
 local data = HttpService:JSONDecode(response)
 
 if data.success then
-    local loader = data.loader
-    local fn = loadstring(loader)
+    local fn = loadstring(data.loader)
     if fn then
         fn()
     else
