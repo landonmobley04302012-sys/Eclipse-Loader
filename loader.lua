@@ -1,10 +1,15 @@
--- 🌑 ECLIPSE - Ultra Compatible Bootstrapper
+-- 🌑 ECLIPSE - Public Bootstrapper
 local HttpService = game:GetService("HttpService")
 local SCRIPT_KEY = script_key or ""
 
--- Simple HWID - works on ALL executors
 local function getHWID()
-    -- Just use a random GUID - Xeno doesn't need complex HWID
+    local success, result = pcall(function()
+        if syn and syn.crypto then return syn.crypto.hash(syn.user_id() .. syn.hwid()) end
+        if SW_HWID then return SW_HWID end
+        if krnl and krnl.hwid then return krnl.hwid() end
+        if fluxus and fluxus.hwid then return fluxus.hwid() end
+    end)
+    if success and result then return result end
     return HttpService:GenerateGUID(false)
 end
 
@@ -16,7 +21,15 @@ local response = game:HttpGet(url)
 local data = HttpService:JSONDecode(response)
 
 if data.success then
-    loadstring(data.loader)()
+    local loaderUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
+    local loaderResponse = game:HttpGet(loaderUrl)
+    local loaderData = HttpService:JSONDecode(loaderResponse)
+    
+    if loaderData.script then
+        loadstring(loaderData.script)()
+    else
+        error("Eclipse: Failed to load UI")
+    end
 else
     error("Eclipse: " .. (data.message or "Access denied"))
 end
