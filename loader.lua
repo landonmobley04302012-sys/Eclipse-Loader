@@ -1,6 +1,9 @@
--- 🌑 ECLIPSE - Public Bootstrapper with Retry
+-- 🌑 ECLIPSE - Public Bootstrapper with Debug
 local HttpService = game:GetService("HttpService")
 local SCRIPT_KEY = script_key or ""
+
+print("🚀 Eclipse Bootstrapper Starting...")
+print("📝 Key: " .. (SCRIPT_KEY ~= "" and SCRIPT_KEY:sub(1,10).."..." or "No key provided"))
 
 local function getHWID()
     local success, result = pcall(function()
@@ -9,40 +12,58 @@ local function getHWID()
         if krnl and krnl.hwid then return krnl.hwid() end
         if fluxus and fluxus.hwid then return fluxus.hwid() end
     end)
-    if success and result then return result end
-    return HttpService:GenerateGUID(false)
+    if success and result then 
+        print("✅ HWID generated: " .. result:sub(1,20).."...")
+        return result 
+    end
+    local fallback = HttpService:GenerateGUID(false)
+    print("⚠️ Using fallback HWID: " .. fallback:sub(1,20).."...")
+    return fallback
 end
 
 local PORTAL_URL = "https://eclipse-portal-production.up.railway.app"
 local hwid = getHWID()
 
--- Retry function
-local function tryFetch()
-    local url = PORTAL_URL .. "/api/claim?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid)
-    local response = game:HttpGet(url)
-    local data = HttpService:JSONDecode(response)
+print("🌐 Calling portal: " .. PORTAL_URL .. "/api/claim?...")
+
+local url = PORTAL_URL .. "/api/claim?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid)
+
+local success, response = pcall(function() return game:HttpGet(url) end)
+
+if not success then
+    print("❌ Failed to reach portal: " .. tostring(response))
+    error("Eclipse: Connection failed")
+end
+
+print("📥 Portal response received")
+
+local data = HttpService:JSONDecode(response)
+print("📊 Portal response success: " .. tostring(data.success))
+if data.message then print("💬 Portal message: " .. data.message) end
+
+if data.success then
+    print("🔑 Key validated! Fetching loader...")
     
-    if data.success then
-        local scriptUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
-        local scriptResponse = game:HttpGet(scriptUrl)
-        local scriptData = HttpService:JSONDecode(scriptResponse)
-        if scriptData.script then
-            loadstring(scriptData.script)()
-            return true
-        end
+    local scriptUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
+    
+    local scriptSuccess, scriptResponse = pcall(function() return game:HttpGet(scriptUrl) end)
+    
+    if not scriptSuccess then
+        print("❌ Failed to fetch loader: " .. tostring(scriptResponse))
+        error("Eclipse: Failed to fetch loader")
     end
-    return false
+    
+    print("📥 Loader response received")
+    local scriptData = HttpService:JSONDecode(scriptResponse)
+    
+    if scriptData.script then
+        print("✅ Loader found! Executing...")
+        loadstring(scriptData.script)()
+    else
+        print("❌ No loader in response")
+        error("Eclipse: Failed to load UI")
+    end
+else
+    print("❌ Portal rejected key: " .. (data.message or "Access denied"))
+    error("Eclipse: " .. (data.message or "Access denied"))
 end
-
--- Try up to 3 times with delays
-for attempt = 1, 3 do
-    local success = pcall(tryFetch)
-    if success then
-        return
-    end
-    if attempt < 3 then
-        wait(1) -- Wait 1 second between retries
-    end
-end
-
-error("Eclipse: Failed to load UI after 3 attempts")
