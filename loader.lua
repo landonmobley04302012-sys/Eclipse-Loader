@@ -15,18 +15,17 @@ end
 
 local PORTAL_URL = "https://eclipse-portal-production.up.railway.app"
 local hwid = getHWID()
-local url = PORTAL_URL .. "/api/loader?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid)
+local url = PORTAL_URL .. "/api/claim?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid)
 
 local response = game:HttpGet(url)
 local data = HttpService:JSONDecode(response)
 
 if data.success then
-    local loaderUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
-    local loaderResponse = game:HttpGet(loaderUrl)
-    local loaderData = HttpService:JSONDecode(loaderResponse)
-    
-    if loaderData.script then
-        loadstring(loaderData.script)()
+    local scriptUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
+    local scriptResponse = game:HttpGet(scriptUrl)
+    local scriptData = HttpService:JSONDecode(scriptResponse)
+    if scriptData.script then
+        loadstring(scriptData.script)()
     else
         error("Eclipse: Failed to load UI")
     end
