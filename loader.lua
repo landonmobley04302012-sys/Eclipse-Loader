@@ -1,4 +1,4 @@
--- 🌑 ECLIPSE - Public Bootstrapper with Debug
+-- 🌑 ECLIPSE - Public Bootstrapper with Loader Retry
 local HttpService = game:GetService("HttpService")
 local SCRIPT_KEY = script_key or ""
 
@@ -39,29 +39,44 @@ print("📥 Portal response received")
 
 local data = HttpService:JSONDecode(response)
 print("📊 Portal response success: " .. tostring(data.success))
-if data.message then print("💬 Portal message: " .. data.message) end
 
 if data.success then
     print("🔑 Key validated! Fetching loader...")
     
     local scriptUrl = PORTAL_URL .. "/api/script?key=" .. HttpService:UrlEncode(SCRIPT_KEY) .. "&hwid=" .. HttpService:UrlEncode(hwid) .. "&gameId=loader"
     
-    local scriptSuccess, scriptResponse = pcall(function() return game:HttpGet(scriptUrl) end)
-    
-    if not scriptSuccess then
-        print("❌ Failed to fetch loader: " .. tostring(scriptResponse))
-        error("Eclipse: Failed to fetch loader")
+    -- RETRY LOADER FETCH UP TO 3 TIMES
+    local loaderScript = nil
+    for attempt = 1, 3 do
+        print("🔄 Loader fetch attempt " .. attempt .. "/3")
+        
+        local scriptSuccess, scriptResponse = pcall(function() return game:HttpGet(scriptUrl) end)
+        
+        if scriptSuccess then
+            local scriptData = HttpService:JSONDecode(scriptResponse)
+            if scriptData.script then
+                loaderScript = scriptData.script
+                print("✅ Loader found on attempt " .. attempt)
+                break
+            else
+                print("⚠️ No loader in response on attempt " .. attempt .. ": " .. (scriptData.error or "unknown"))
+            end
+        else
+            print("⚠️ Fetch failed on attempt " .. attempt .. ": " .. tostring(scriptResponse))
+        end
+        
+        if attempt < 3 then
+            print("⏳ Waiting 1 second before retry...")
+            wait(1)
+        end
     end
     
-    print("📥 Loader response received")
-    local scriptData = HttpService:JSONDecode(scriptResponse)
-    
-    if scriptData.script then
-        print("✅ Loader found! Executing...")
-        loadstring(scriptData.script)()
+    if loaderScript then
+        print("✅ Executing loader...")
+        loadstring(loaderScript)()
     else
-        print("❌ No loader in response")
-        error("Eclipse: Failed to load UI")
+        print("❌ Failed to fetch loader after 3 attempts")
+        error("Eclipse: Failed to load UI after retries")
     end
 else
     print("❌ Portal rejected key: " .. (data.message or "Access denied"))
